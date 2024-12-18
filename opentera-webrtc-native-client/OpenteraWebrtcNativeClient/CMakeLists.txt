@@ -19,6 +19,7 @@ else ()
     set(OpenCV_INCLUDE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/../3rdParty/opencv/modules/core/include
             ${CMAKE_CURRENT_SOURCE_DIR}/../3rdParty/opencv/modules/imgproc/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/../3rdParty/opencv/modules/videoio/include
             ${_OpenCV_include_dirs_examples}
             ${CMAKE_BINARY_DIR} CACHE INTERNAL ""
             )
@@ -32,8 +33,8 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories(BEFORE SYSTEM ${webrtc_native_INCLUDE})
 include_directories(BEFORE SYSTEM ${boringssl_INCLUDE})
 include_directories(BEFORE SYSTEM ${libyuv_INCLUDE})
-include_directories(../3rdParty/socket.io-client-cpp/src)
-include_directories(../3rdParty/socket.io-client-cpp/lib/rapidjson/include)
+include_directories(../3rdParty/json/include)
+include_directories(../3rdParty/IXWebSocket)
 include_directories(../3rdParty/cpp-httplib)
 include_directories(include)
 
@@ -49,7 +50,7 @@ add_library(OpenteraWebrtcNativeClient
         ${source_files})
 
 target_link_libraries(OpenteraWebrtcNativeClient
-        sioclient
+        ixwebsocket
         ${webrtc_native_LIBRARY}
         ${boringssl_LIBRARY}
         ${libyuv_LIBRARY}
@@ -63,6 +64,7 @@ if (WIN32)
             wmcodecdspuuid
             msdmo
             strmiids
+            iphlpapi
             )
 endif ()
 
@@ -84,3 +86,9 @@ add_subdirectory(python)
 if (OPENTERA_WEBRTC_ENABLE_TESTS)
     add_subdirectory(test)
 endif ()
+
+if (OPENTERA_WEBRTC_ENABLE_GSTREAMER)
+    include_directories(../OpenteraWebrtcNativeGStreamer/include)
+    target_compile_definitions(OpenteraWebrtcNativeClient PUBLIC USE_GSTREAMER)
+    target_link_libraries(OpenteraWebrtcNativeClient OpenteraWebrtcNativeGStreamer)
+endif()

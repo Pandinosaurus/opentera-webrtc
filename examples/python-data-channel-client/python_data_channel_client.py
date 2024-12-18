@@ -42,6 +42,13 @@ def on_client_disconnected(client):
         client.id, client.name, client.data))
 
 
+def on_client_connection_failed(client):
+    # This callback is called from the internal client thread.
+    print('on_client_connection_failed:')
+    print('\tid={}, name={}, data={}\n'.format(
+        client.id, client.name, client.data))
+
+
 def on_error(error):
     # This callback is called from the internal client thread.
     print('error:')
@@ -77,8 +84,8 @@ def on_data_channel_message_string(client, message):
 
 
 if __name__ == '__main__':
-    signaling_server_configuration = webrtc.SignalingServerConfiguration.create(
-        'http://localhost:8080', 'Python', None, 'chat', 'abc')
+    signaling_server_configuration = webrtc.SignalingServerConfiguration.create_with_data(
+        'ws://localhost:8080/signaling', 'Python', None, 'chat', 'abc')
     ice_servers = webrtc.IceServer.fetch_from_server(
         'http://localhost:8080/iceservers', 'abc')
     webrtc_configuration = webrtc.WebrtcConfiguration.create(ice_servers)
@@ -95,6 +102,7 @@ if __name__ == '__main__':
 
     client.on_client_connected = on_client_connected
     client.on_client_disconnected = on_client_disconnected
+    client.on_client_connection_failed = on_client_connection_failed
 
     client.on_error = on_error
 

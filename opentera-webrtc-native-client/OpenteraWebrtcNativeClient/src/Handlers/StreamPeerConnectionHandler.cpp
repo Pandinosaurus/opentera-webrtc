@@ -9,20 +9,18 @@ using namespace rtc;
 using namespace webrtc;
 using namespace std;
 
-static constexpr bool OfferToReceiveVideo = true;
-static constexpr bool OfferToReceiveAudio = true;
-
 StreamPeerConnectionHandler::StreamPeerConnectionHandler(
     string id,
     Client peerClient,
     bool isCaller,
     bool hasOnMixedAudioFrameReceivedCallback,
-    function<void(const string&, const sio::message::ptr&)> sendEvent,
+    SignalingClient& m_signalingClient,
     function<void(const string&)> onError,
     function<void(const Client&)> onClientConnected,
     function<void(const Client&)> onClientDisconnected,
-    scoped_refptr<VideoTrackInterface> videoTrack,
-    scoped_refptr<AudioTrackInterface> audioTrack,
+    function<void(const Client&)> onClientConnectionFailed,
+    webrtc::scoped_refptr<VideoTrackInterface> videoTrack,
+    webrtc::scoped_refptr<AudioTrackInterface> audioTrack,
     function<void(const Client&)> onAddRemoteStream,
     function<void(const Client&)> onRemoveRemoteStream,
     const VideoFrameReceivedCallback& onVideoFrameReceived,
@@ -32,12 +30,13 @@ StreamPeerConnectionHandler::StreamPeerConnectionHandler(
           move(id),
           move(peerClient),
           isCaller,
-          move(sendEvent),
+          m_signalingClient,
           move(onError),
           move(onClientConnected),
-          move(onClientDisconnected)),
-      m_offerToReceiveAudio(hasOnMixedAudioFrameReceivedCallback || onAudioFrameReceived),
+          move(onClientDisconnected),
+          move(onClientConnectionFailed)),
       m_offerToReceiveVideo(static_cast<bool>(onVideoFrameReceived)),
+      m_offerToReceiveAudio(hasOnMixedAudioFrameReceivedCallback || onAudioFrameReceived),
       m_videoTrack(move(videoTrack)),
       m_audioTrack(move(audioTrack)),
       m_onAddRemoteStream(move(onAddRemoteStream)),
@@ -92,6 +91,11 @@ StreamPeerConnectionHandler::StreamPeerConnectionHandler(
 
 StreamPeerConnectionHandler::~StreamPeerConnectionHandler()
 {
+    for (auto& transceiver : m_peerConnection->GetTransceivers())
+    {
+        transceiver->StopStandard();
+    }
+
     for (auto& track : m_tracks)
     {
         auto videoTrack = dynamic_cast<VideoTrackInterface*>(track.get());
@@ -108,7 +112,8 @@ StreamPeerConnectionHandler::~StreamPeerConnectionHandler()
     }
 }
 
-void StreamPeerConnectionHandler::setPeerConnection(const scoped_refptr<PeerConnectionInterface>& peerConnection)
+void StreamPeerConnectionHandler::setPeerConnection(
+    const webrtc::scoped_refptr<PeerConnectionInterface>& peerConnection)
 {
     PeerConnectionHandler::setPeerConnection(peerConnection);
 

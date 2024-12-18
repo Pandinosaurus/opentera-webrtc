@@ -21,7 +21,7 @@
   sendButton.disabled = true;
   chatTextArea.value = '';
 
-  let dataChannelClient = null; 
+  let dataChannelClient = null;
 
   function connectDataChannelClientEvents() {
     dataChannelClient.onSignalingConnectionOpen = () => {
@@ -60,6 +60,10 @@
       alert('The call is rejected (' + name + ')');
     };
 
+    dataChannelClient.onClientConnectionFail = (id, name, clientData) => {
+      console.log('The connect with the client ' + name + '(' + id + ') failed.');
+    }
+
     dataChannelClient.onDataChannelOpen = (id, name, clientData) => {
       sendButton.disabled = false;
       callAllButton.disabled = true;
@@ -84,7 +88,7 @@
 
   connectButton.onclick = async () => {
     const SignalingServerConfiguration = {
-      url: 'http://localhost:8080',
+      url: 'ws://localhost:8080/signaling',
       name: nameInput.value,
       data: {}, // Client custom data
       room: 'chat',

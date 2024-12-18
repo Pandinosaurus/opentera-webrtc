@@ -5,7 +5,7 @@
 #include <OpenteraWebrtcNativeClient/Sources/VideoSource.h>
 #include <OpenteraWebrtcNativeClient/Handlers/StreamPeerConnectionHandler.h>
 
-#include <OpenteraWebrtcNativeClient/SignalingClient.h>
+#include <OpenteraWebrtcNativeClient/WebrtcClient.h>
 
 #include <memory>
 
@@ -14,7 +14,7 @@ namespace opentera
     /**
      * @brief A signaling client to join a WebRTC room and stream a video source.
      */
-    class StreamClient : public SignalingClient
+    class StreamClient : public WebrtcClient
     {
         std::shared_ptr<VideoSource> m_videoSource;
         std::shared_ptr<AudioSource> m_audioSource;
@@ -33,18 +33,22 @@ namespace opentera
     public:
         StreamClient(
             SignalingServerConfiguration signalingServerConfiguration,
-            WebrtcConfiguration webrtcConfiguration);
+            WebrtcConfiguration webrtcConfiguration,
+            VideoStreamConfiguration videoStreamConfiguration);
         StreamClient(
             SignalingServerConfiguration signalingServerConfiguration,
             WebrtcConfiguration webrtcConfiguration,
+            VideoStreamConfiguration videoStreamConfiguration,
             std::shared_ptr<VideoSource> videoSource);
         StreamClient(
             SignalingServerConfiguration signalingServerConfiguration,
             WebrtcConfiguration webrtcConfiguration,
+            VideoStreamConfiguration videoStreamConfiguration,
             std::shared_ptr<AudioSource> audioSource);
         StreamClient(
             SignalingServerConfiguration signalingServerConfiguration,
             WebrtcConfiguration webrtcConfiguration,
+            VideoStreamConfiguration videoStreamConfiguration,
             std::shared_ptr<VideoSource> videoSource,
             std::shared_ptr<AudioSource> audioSource);
         ~StreamClient() override;
@@ -56,7 +60,7 @@ namespace opentera
         void muteLocalAudio();
         void unmuteLocalAudio();
         void setLocalAudioMuted(bool muted);
-        
+
         bool isRemoteAudioMuted();
         void muteRemoteAudio();
         void unmuteRemoteAudio();
@@ -98,7 +102,7 @@ namespace opentera
      * @brief Unmutes the local audio.
      */
     inline void StreamClient::unmuteLocalAudio() { setLocalAudioMuted(false); }
-    
+
     /**
      * @brief Indicates if the remote audio is muted.
      * @return true if the remote audio is muted.
@@ -144,7 +148,7 @@ namespace opentera
      *
      * @parblock
      * Callback parameters:
-     * - client: The client of the stream
+     *  - client: The client of the stream
      * @endparblock
      *
      * @param callback The callback
@@ -161,7 +165,7 @@ namespace opentera
      *
      * @parblock
      * Callback parameters:
-     * - client: The client of the stream
+     *  - client: The client of the stream
      * @endparblock
      *
      * @param callback The callback
@@ -178,9 +182,9 @@ namespace opentera
      *
      * @parblock
      * Callback parameters:
-     * - client: The client of the stream frame
-     * - bgrImg: The BGR frame image
-     * - timestampUs The timestamp in microseconds
+     *  - client: The client of the stream frame
+     *  - bgrImg: The BGR frame image
+     *  - timestampUs The timestamp in microseconds
      * @endparblock
      *
      * @param callback The callback
@@ -197,14 +201,14 @@ namespace opentera
      *
      * @parblock
      * Callback parameters:
-     * - client: The client of the stream frame
-     * - data: The binary data
-     * - dataSize: The data size
-     * - codecType: The codec type
-     * - isKeyFrame: Indicates if it is a key frame
-     * - width: The frame width if it is a key frame
-     * - height: The frame height if it is a key frame
-     * - timestampUs The timestamp in microseconds
+     *  - client: The client of the stream frame
+     *  - data: The binary data
+     *  - dataSize: The data size
+     *  - codecType: The codec type
+     *  - isKeyFrame: Indicates if it is a key frame
+     *  - width: The frame width if it is a key frame
+     *  - height: The frame height if it is a key frame
+     *  - timestampUs The timestamp in microseconds
      * @endparblock
      *
      * @param callback The callback
@@ -221,12 +225,12 @@ namespace opentera
      *
      * @parblock
      * Callback parameters:
-     * - client: The client of the stream frame
-     * - audioData: The audio data
-     * - bitsPerSample: The audio stream sample size (8, 16 or 32 bits)
-     * - sampleRate: The audio stream sample rate
-     * - numberOfChannels: The audio stream channel count
-     * - numberOfFrames: The number of frames
+     *  - client: The client of the stream frame
+     *  - audioData: The audio data
+     *  - bitsPerSample: The audio stream sample size (8, 16 or 32 bits)
+     *  - sampleRate: The audio stream sample rate
+     *  - numberOfChannels: The audio stream channel count
+     *  - numberOfFrames: The number of frames
      * @endparblock
      *
      * @param callback The callback
@@ -243,11 +247,11 @@ namespace opentera
      *
      * @parblock
      * Callback parameters:
-     * - audioData: The audio data
-     * - bitsPerSample: The audio stream sample size (8, 16 or 32 bits)
-     * - sampleRate: The audio stream sample rate
-     * - numberOfChannels: The audio stream channel count
-     * - numberOfFrames: The number of frames
+     *  - audioData: The audio data
+     *  - bitsPerSample: The audio stream sample size (8, 16 or 32 bits)
+     *  - sampleRate: The audio stream sample rate
+     *  - numberOfChannels: The audio stream channel count
+     *  - numberOfFrames: The number of frames
      * @endparblock
      *
      * @param callback The callback

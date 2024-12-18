@@ -3,16 +3,23 @@
 using namespace opentera;
 using namespace std;
 
-class DummySetSessionDescriptionObserver : public webrtc::SetSessionDescriptionObserver
+class OnlyFailureSetSessionDescriptionObserver : public webrtc::SetSessionDescriptionObserver
 {
+    function<void(const string&)> m_onError;
+
 public:
-    static DummySetSessionDescriptionObserver* Create()
+    explicit OnlyFailureSetSessionDescriptionObserver(function<void(const string&)> onError) : m_onError(move(onError))
     {
-        return new rtc::RefCountedObject<DummySetSessionDescriptionObserver>();
+    }
+
+    static OnlyFailureSetSessionDescriptionObserver* Create(function<void(const string&)> onError)
+    {
+        return new rtc::RefCountedObject<OnlyFailureSetSessionDescriptionObserver>(move(onError));
     }
 
     void OnSuccess() override {}
-    void OnFailure(webrtc::RTCError error) override {}
+
+    void OnFailure(webrtc::RTCError error) override { m_onError(error.message()); }
 };
 
 void CreateSessionDescriptionObserverHelper::OnSuccess(webrtc::SessionDescriptionInterface* desc)
@@ -39,17 +46,19 @@ PeerConnectionHandler::PeerConnectionHandler(
     string&& id,
     Client&& peerClient,
     bool isCaller,
-    function<void(const string&, const sio::message::ptr&)>&& sendEvent,
+    SignalingClient& m_signalingClient,
     function<void(const string&)>&& onError,
     function<void(const Client&)>&& onClientConnected,
-    function<void(const Client&)>&& onClientDisconnected)
+    function<void(const Client&)>&& onClientDisconnected,
+    function<void(const Client&)>&& onClientConnectionFailed)
     : m_id(move(id)),
       m_peerClient(move(peerClient)),
       m_isCaller(isCaller),
-      m_sendEvent(move(sendEvent)),
+      m_signalingClient(m_signalingClient),
       m_onError(move(onError)),
       m_onClientConnected(move(onClientConnected)),
       m_onClientDisconnected(move(onClientDisconnected)),
+      m_onClientConnectionFailed(move(onClientConnectionFailed)),
       m_onClientDisconnectedCalled(true)
 {
 }
@@ -58,7 +67,6 @@ PeerConnectionHandler::~PeerConnectionHandler()
 {
     if (m_peerConnection)
     {
-        m_sendEvent = [](const string&, const sio::message::ptr&) {};
         m_onError = [](const string&) {};
         m_onClientConnected = [](const Client&) {};
         m_onClientDisconnected = [](const Client&) {};
@@ -102,7 +110,7 @@ void PeerConnectionHandler::receivePeerCallAnswer(const string& sdp)
     auto desc = webrtc::CreateSessionDescription("answer", sdp, &error);
     if (desc)
     {
-        m_peerConnection->SetRemoteDescription(DummySetSessionDescriptionObserver::Create(), desc);
+        m_peerConnection->SetRemoteDescription(OnlyFailureSetSessionDescriptionObserver::Create(m_onError), desc);
     }
     else
     {
@@ -119,7 +127,7 @@ void PeerConnectionHandler::receiveIceCandidate(const string& sdpMid, int sdpMLi
         m_peerConnection->AddIceCandidate(candidate);
         delete candidate;
     }
-    else if (error.line != "")
+    else if (!error.line.empty())
     {
         m_onError(error.line + " - " + error.description);
     }
@@ -133,14 +141,14 @@ void PeerConnectionHandler::OnConnectionChange(webrtc::PeerConnectionInterface::
             m_onClientConnected(m_peerClient);
             m_onClientDisconnectedCalled = false;
             break;
-
-        case webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected:
         case webrtc::PeerConnectionInterface::PeerConnectionState::kFailed:
+            m_onClientConnectionFailed(m_peerClient);
+            break;
+        case webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected:
         case webrtc::PeerConnectionInterface::PeerConnectionState::kClosed:
             m_onClientDisconnected(m_peerClient);
             m_onClientDisconnectedCalled = true;
             break;
-
         default:
             break;
     }
@@ -151,52 +159,40 @@ void PeerConnectionHandler::OnIceCandidate(const webrtc::IceCandidateInterface* 
     string sdp;
     candidate->ToString(&sdp);
 
-    auto candidateMessage = sio::object_message::create();
-    candidateMessage->get_map()["sdpMid"] = sio::string_message::create(candidate->sdp_mid());
-    candidateMessage->get_map()["sdpMLineIndex"] = sio::int_message::create(candidate->sdp_mline_index());
-    candidateMessage->get_map()["candidate"] = sio::string_message::create(sdp);
-
-    auto data = sio::object_message::create();
-    data->get_map()["toId"] = sio::string_message::create(m_peerClient.id());
-    data->get_map()["candidate"] = candidateMessage;
-
-    m_sendEvent("send-ice-candidate", data);
+    m_signalingClient.sendIceCandidate(candidate->sdp_mid(), candidate->sdp_mline_index(), sdp, m_peerClient.id());
 }
 
-void PeerConnectionHandler::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> dataChannel) {}
+void PeerConnectionHandler::OnDataChannel([[maybe_unused]] rtc::scoped_refptr<webrtc::DataChannelInterface> dataChannel)
+{
+}
 
-void PeerConnectionHandler::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) {}
+void PeerConnectionHandler::OnTrack([[maybe_unused]] rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) {}
 
-void PeerConnectionHandler::OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) {}
+void PeerConnectionHandler::OnRemoveTrack([[maybe_unused]] rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) {}
 
-void PeerConnectionHandler::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState) {}
+void PeerConnectionHandler::OnSignalingChange([[maybe_unused]] webrtc::PeerConnectionInterface::SignalingState newState)
+{
+}
 
-void PeerConnectionHandler::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState newState) {}
+void PeerConnectionHandler::OnIceGatheringChange(
+    [[maybe_unused]] webrtc::PeerConnectionInterface::IceGatheringState newState)
+{
+}
 
 void PeerConnectionHandler::OnCreateSessionDescriptionObserverSuccess(webrtc::SessionDescriptionInterface* desc)
 {
-    m_peerConnection->SetLocalDescription(DummySetSessionDescriptionObserver::Create(), desc);
+    m_peerConnection->SetLocalDescription(OnlyFailureSetSessionDescriptionObserver::Create(m_onError), desc);
 
     string sdp;
     desc->ToString(&sdp);
 
-    auto offer = sio::object_message::create();
-    offer->get_map()["sdp"] = sio::string_message::create(sdp);
-
-    auto data = sio::object_message::create();
-    data->get_map()["toId"] = sio::string_message::create(m_peerClient.id());
-
     if (m_isCaller)
     {
-        offer->get_map()["type"] = sio::string_message::create("offer");
-        data->get_map()["offer"] = offer;
-        m_sendEvent("call-peer", data);
+        m_signalingClient.callPeer(m_peerClient.id(), sdp);
     }
     else
     {
-        offer->get_map()["type"] = sio::string_message::create("answer");
-        data->get_map()["answer"] = offer;
-        m_sendEvent("make-peer-call-answer", data);
+        m_signalingClient.makePeerCallAnswer(m_peerClient.id(), sdp);
     }
 }
 

@@ -12,6 +12,7 @@ CACHE INTERNAL "")
 message(STATUS "opentera-webrtc-native-client Version : ${OPENTERA_WEBRTC_NATIVE_CLIENT_VERSION}")
 
 add_definitions(-DOPENTERA_WEBRTC_NATIVE_CLIENT_VERSION="${OPENTERA_WEBRTC_NATIVE_CLIENT_VERSION}")
+add_definitions(-DWEBRTC_USE_H264)
 
 if (POLICY CMP0014)
     cmake_policy(SET CMP0014 NEW)
@@ -27,8 +28,8 @@ endif (POLICY CMP0094)
 
 project(opentera-webrtc)
 
-if (NOT DEFINED CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "")
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
 endif ()
 
 # Python version
@@ -59,6 +60,9 @@ option(OPENTERA_WEBRTC_ENABLE_TESTS "Build tests" ON)
 
 # Default behavior is to enable examples
 option(OPENTERA_WEBRTC_ENABLE_EXAMPLES "Build examples" ON)
+
+# Default behavior is to disable GStreamer examples
+option(OPENTERA_WEBRTC_ENABLE_GSTREAMER "Compile with GStreamer support" OFF)
 
 # Default behavior is to enable stub file
 option(OPENTERA_WEBRTC_ENABLE_PYTHON_SO_STUB "Generate stub file" ON)
@@ -105,10 +109,12 @@ set(OPENTERA_WEBRTC_NATIVE_CLIENT_PYTHON_PIP_PYTHON_EXECUTABLE_SIGNALING_SERVER
 
 if (WIN32)
     add_compile_definitions(WEBRTC_WIN NOMINMAX _WIN32_WINNT=0x0A00)
+	add_compile_definitions($<$<CONFIG:Debug>:_ITERATOR_DEBUG_LEVEL=0>)
 elseif (UNIX)
     set(CMAKE_CXX_FLAGS "-fPIC")
     add_compile_definitions(WEBRTC_POSIX)
     if (APPLE)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
         add_compile_definitions(WEBRTC_MAC)
     endif(APPLE)
 else()
@@ -133,5 +139,7 @@ add_subdirectory(signaling-server)
 
 if(OPENTERA_WEBRTC_ENABLE_EXAMPLES)
     add_subdirectory(examples/cpp-data-channel-client)
-    add_subdirectory(examples/cpp-stream-client)
+    add_subdirectory(examples/cpp-data-channel-client-reliability-tests)
+    add_subdirectory(examples/cpp-video-stream-client)
+    add_subdirectory(examples/cpp-camera-stream-client)
 endif()

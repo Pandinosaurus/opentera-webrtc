@@ -46,6 +46,13 @@ def on_client_disconnected(client):
         client.id, client.name, client.data))
 
 
+def on_client_connection_failed(client):
+    # This callback is called from the internal client thread.
+    print('on_client_connection_failed:')
+    print('\tid={}, name={}, data={}\n'.format(
+        client.id, client.name, client.data))
+
+
 def on_add_remote_stream(client):
     # This callback is called from the internal client thread.
     print('on_add_remote_stream:')
@@ -92,11 +99,12 @@ if __name__ == '__main__':
     frame = cv2.imread(os.path.join(os.path.dirname(
         os.path.realpath(__file__)), 'frame.png'))
 
-    signaling_server_configuration = webrtc.SignalingServerConfiguration.create(
-        'http://localhost:8080', 'Python', None, 'chat', 'abc')
+    signaling_server_configuration = webrtc.SignalingServerConfiguration.create_with_data(
+        'ws://localhost:8080/signaling', 'Python', None, 'chat', 'abc')
     ice_servers = webrtc.IceServer.fetch_from_server(
         'http://localhost:8080/iceservers', 'abc')
     webrtc_configuration = webrtc.WebrtcConfiguration.create(ice_servers)
+    video_stream_configuration = webrtc.VideoStreamConfiguration.create()
 
     video_source = webrtc.VideoSource(
         webrtc.VideoSourceConfiguration.create(False, False))
@@ -105,7 +113,7 @@ if __name__ == '__main__':
     audio_source = webrtc.AudioSource(
         webrtc.AudioSourceConfiguration.create(sound_card_total_delay_ms), 16, fs, 1)
     client = webrtc.StreamClient(
-        signaling_server_configuration, webrtc_configuration, video_source, audio_source)
+        signaling_server_configuration, webrtc_configuration, video_stream_configuration, video_source, audio_source)
 
     client.on_signaling_connection_opened = on_signaling_connection_opened
     client.on_signaling_connection_closed = on_signaling_connection_closed
@@ -115,6 +123,7 @@ if __name__ == '__main__':
 
     client.on_client_connected = on_client_connected
     client.on_client_disconnected = on_client_disconnected
+    client.on_client_connection_failed = on_client_connection_failed
 
     client.on_add_remote_stream = on_add_remote_stream
     client.on_remove_remote_stream = on_remove_remote_stream

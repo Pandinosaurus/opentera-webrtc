@@ -30,10 +30,12 @@ pip_configure_package_file(${LICENSE_FILE} LICENSE)
 set(SOURCE
     opentera_webrtc/signaling_server/__init__.py
     opentera_webrtc/signaling_server/room_manager.py
+    opentera_webrtc/signaling_server/web_socket_client_manager.py
     opentera_webrtc/signaling_server/signaling_server.py
 
     opentera-signaling-server
     README.md
+    requirements.txt
 )
 # Same relative tree between CMAKE_CURRENT_SOURCE_DIR and PYTHON_PACKAGE_DIR for files in SOURCE will work as expected with this command
 pip_configure_package_file_hierarchy(${SOURCE})

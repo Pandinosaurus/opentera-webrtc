@@ -9,11 +9,13 @@ using namespace std;
  * @param signalingServerConfiguration The configuration to connect to the
  * signaling server
  * @param webrtcConfiguration The WebRTC configuration
+ * @param videoStreamConfiguration The video stream configuration
  */
 StreamClient::StreamClient(
     SignalingServerConfiguration signalingServerConfiguration,
-    WebrtcConfiguration webrtcConfiguration)
-    : SignalingClient(move(signalingServerConfiguration), move(webrtcConfiguration)),
+    WebrtcConfiguration webrtcConfiguration,
+    VideoStreamConfiguration videoStreamConfiguration)
+    : WebrtcClient(move(signalingServerConfiguration), move(webrtcConfiguration), move(videoStreamConfiguration)),
       m_hasOnMixedAudioFrameReceivedCallback(false),
       m_isLocalAudioMuted(false),
       m_isRemoteAudioMuted(false),
@@ -27,13 +29,15 @@ StreamClient::StreamClient(
  * @param signalingServerConfiguration The configuration to connect to the
  * signaling server
  * @param webrtcConfiguration The WebRTC configuration
+ * @param videoStreamConfiguration The video stream configuration
  * @param videoSource The video source that this client will add to the call
  */
 StreamClient::StreamClient(
     SignalingServerConfiguration signalingServerConfiguration,
     WebrtcConfiguration webrtcConfiguration,
+    VideoStreamConfiguration videoStreamConfiguration,
     shared_ptr<VideoSource> videoSource)
-    : SignalingClient(move(signalingServerConfiguration), move(webrtcConfiguration)),
+    : WebrtcClient(move(signalingServerConfiguration), move(webrtcConfiguration), move(videoStreamConfiguration)),
       m_videoSource(move(videoSource)),
       m_hasOnMixedAudioFrameReceivedCallback(false),
       m_isLocalAudioMuted(false),
@@ -48,13 +52,15 @@ StreamClient::StreamClient(
  * @param signalingServerConfiguration The configuration to connect to the
  * signaling server
  * @param webrtcConfiguration The WebRTC configuration
+ * @param videoStreamConfiguration The video stream configuration
  * @param audioSource The audio source that this client will add to the call
  */
 StreamClient::StreamClient(
     SignalingServerConfiguration signalingServerConfiguration,
     WebrtcConfiguration webrtcConfiguration,
+    VideoStreamConfiguration videoStreamConfiguration,
     shared_ptr<AudioSource> audioSource)
-    : SignalingClient(move(signalingServerConfiguration), move(webrtcConfiguration)),
+    : WebrtcClient(move(signalingServerConfiguration), move(webrtcConfiguration), move(videoStreamConfiguration)),
       m_audioSource(move(audioSource)),
       m_hasOnMixedAudioFrameReceivedCallback(false),
       m_isLocalAudioMuted(false),
@@ -74,15 +80,17 @@ StreamClient::StreamClient(
  * @param signalingServerConfiguration The configuration to connect to the
  * signaling server
  * @param webrtcConfiguration The WebRTC configuration
+ * @param videoStreamConfiguration The video stream configuration
  * @param videoSource The video source that this client will add to the call
  * @param audioSource The audio source that this client will add to the call
  */
 StreamClient::StreamClient(
     SignalingServerConfiguration signalingServerConfiguration,
     WebrtcConfiguration webrtcConfiguration,
+    VideoStreamConfiguration videoStreamConfiguration,
     shared_ptr<VideoSource> videoSource,
     shared_ptr<AudioSource> audioSource)
-    : SignalingClient(move(signalingServerConfiguration), move(webrtcConfiguration)),
+    : WebrtcClient(move(signalingServerConfiguration), move(webrtcConfiguration), move(videoStreamConfiguration)),
       m_videoSource(move(videoSource)),
       m_audioSource(move(audioSource)),
       m_hasOnMixedAudioFrameReceivedCallback(false),
@@ -177,7 +185,9 @@ unique_ptr<PeerConnectionHandler>
     rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack = nullptr;
     if (m_videoSource != nullptr)
     {
-        videoTrack = m_peerConnectionFactory->CreateVideoTrack("stream_video", m_videoSource.get());
+        videoTrack = m_peerConnectionFactory->CreateVideoTrack(
+            rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(m_videoSource.get()),
+            "stream_video");
         videoTrack->set_enabled(!m_isLocalVideoMuted);
     }
 
@@ -196,10 +206,11 @@ unique_ptr<PeerConnectionHandler>
         peerClient,
         isCaller,
         m_hasOnMixedAudioFrameReceivedCallback,
-        getSendEventFunction(),
+        *m_signalingClient,
         getOnErrorFunction(),
         getOnClientConnectedFunction(),
         getOnClientDisconnectedFunction(),
+        getOnClientConnectionFailedFunction(),
         videoTrack,
         audioTrack,
         onAddRemoteStream,

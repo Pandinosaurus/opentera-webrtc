@@ -62,6 +62,10 @@
       });
     };
 
+    streamClient.onClientConnectionFail = (id, name, clientData) => {
+      console.log('The connect with the client ' + name + '(' + id + ') failed.');
+    }
+
     streamClient.onAddRemoteStream = (id, name, clientData, stream) => {
       callAllButton.disabled = true;
       hangUpAllButton.disabled = false;
@@ -116,7 +120,7 @@
   };
   connectButton.onclick = async () => {
     const SignalingServerConfiguration = {
-      url: 'http://localhost:8080',
+      url: 'ws://localhost:8080/signaling',
       name: nameInput.value,
       data: {}, // Client custom data
       room: 'chat',
